@@ -1,0 +1,10 @@
+#Entornos virtuales y cachés de Python
+.venv/
+pycache/
+*.pyc
+
+#Checkpoints de Jupyter
+.ipynb_checkpoints/
+
+#Secretos: nunca subir tokens ni variables de entorno
+.env
