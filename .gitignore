@@ -1,0 +1,5 @@
+# CLAVES Y TOKENS PRIVADOS
+token.env
+.env
+.env.*
+ngrok.yml

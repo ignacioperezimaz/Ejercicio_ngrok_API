@@ -208,3 +208,12 @@ def eliminar_tarea(id: int):
         status_code=404,
         detail="Tarea no encontrada"
     )
+
+# INTERFAZ WEB
+from pathlib import Path
+from fastapi.responses import FileResponse
+
+@app.get("/interfaz", include_in_schema=False)
+def mostrar_interfaz():
+    archivo = Path(__file__).with_name("index.html")
+    return FileResponse(archivo, media_type="text/html")

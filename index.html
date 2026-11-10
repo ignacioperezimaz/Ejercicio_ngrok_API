@@ -1,0 +1,288 @@
+
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestor de Tareas</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f1f5f9;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .contenedor {
+            max-width: 650px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px #00000015;
+        }
+
+        h1 {
+            color: #1e293b;
+            text-align: center;
+        }
+
+        p {
+            color: #64748b;
+            text-align: center;
+        }
+
+        input, select {
+            padding: 12px;
+            margin: 5px 0;
+            width: 100%;
+            box-sizing: border-box;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+        }
+
+        button {
+            padding: 10px 15px;
+            margin: 5px;
+            border: none;
+            border-radius: 7px;
+            cursor: pointer;
+            background: #2563eb;
+            color: white;
+        }
+
+        button:hover {
+            opacity: 0.85;
+        }
+
+        .tarea {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            margin-top: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+            gap: 10px;
+        }
+
+        .acciones {
+            display: flex;
+        }
+
+        .editar {
+            background: #f59e0b;
+        }
+
+        .eliminar {
+            background: #ef4444;
+        }
+
+        #mensaje {
+            margin-top: 15px;
+            color: #2563eb;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="contenedor">
+
+        <h1>Gestor de Tareas</h1>
+        <p>Aplicación conectada con FastAPI y Docker</p>
+
+        <h2>Crear o modificar una tarea</h2>
+
+        <form id="formulario">
+
+            <input
+                id="nombre"
+                placeholder="Nombre de la tarea"
+                required
+            >
+
+            <select id="completada">
+                <option value="false">Pendiente</option>
+                <option value="true">Completada</option>
+            </select>
+
+            <button type="submit" id="guardar">
+                Añadir tarea
+            </button>
+
+            <button type="button" id="cancelar" hidden>
+                Cancelar edición
+            </button>
+
+        </form>
+
+        <div id="mensaje"></div>
+
+        <h2>Lista de tareas</h2>
+
+        <button onclick="cargarTareas()">
+            Actualizar lista
+        </button>
+
+        <div id="lista"></div>
+
+    </div>
+
+    <script>
+
+        const API = "/tareas";
+        let idEditando = null;
+
+        function mostrarMensaje(texto) {
+            document.getElementById("mensaje").textContent = texto;
+        }
+
+        // GET: CONSULTAR TODAS LAS TAREAS
+        async function cargarTareas() {
+
+            try {
+                const respuesta = await fetch(API);
+
+                if (!respuesta.ok) {
+                    throw new Error("No se pudieron obtener las tareas");
+                }
+
+                const tareas = await respuesta.json();
+                const lista = document.getElementById("lista");
+
+                lista.replaceChildren();
+
+                tareas.forEach(tarea => {
+
+                    const div = document.createElement("div");
+                    div.className = "tarea";
+
+                    const nombre = document.createElement("span");
+                    nombre.textContent =
+                        `#${tarea.id} - ${tarea.nombre} ` +
+                        (tarea.completada ? "✅" : "⏳");
+
+                    const acciones = document.createElement("div");
+                    acciones.className = "acciones";
+
+                    const botonEditar = document.createElement("button");
+                    botonEditar.textContent = "Editar";
+                    botonEditar.className = "editar";
+                    botonEditar.onclick = () => editarTarea(tarea);
+
+                    const botonEliminar = document.createElement("button");
+                    botonEliminar.textContent = "Eliminar";
+                    botonEliminar.className = "eliminar";
+                    botonEliminar.onclick = () => eliminarTarea(tarea.id);
+
+                    acciones.append(botonEditar, botonEliminar);
+                    div.append(nombre, acciones);
+                    lista.appendChild(div);
+
+                });
+
+            } catch (error) {
+                mostrarMensaje(error.message);
+            }
+        }
+
+        // PREPARAR EDICION
+        function editarTarea(tarea) {
+
+            idEditando = tarea.id;
+
+            document.getElementById("nombre").value = tarea.nombre;
+
+            document.getElementById("completada").value =
+                String(tarea.completada);
+
+            document.getElementById("guardar").textContent =
+                "Guardar cambios";
+
+            document.getElementById("cancelar").hidden = false;
+        }
+
+        function cancelarEdicion() {
+            idEditando = null;
+            document.getElementById("formulario").reset();
+            document.getElementById("guardar").textContent = "Añadir tarea";
+            document.getElementById("cancelar").hidden = true;
+        }
+
+        document.getElementById("cancelar").onclick = cancelarEdicion;
+
+        // POST Y PUT: CREAR O MODIFICAR
+        document.getElementById("formulario").onsubmit = async (evento) => {
+
+            evento.preventDefault();
+
+            const datos = {
+                nombre: document.getElementById("nombre").value,
+                completada:
+                    document.getElementById("completada").value === "true"
+            };
+
+            const editando = idEditando !== null;
+            const url = editando ? `${API}/${idEditando}` : API;
+            const metodo = editando ? "PUT" : "POST";
+
+            try {
+                const respuesta = await fetch(url, {
+                    method: metodo,
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(datos)
+                });
+
+                if (!respuesta.ok) {
+                    throw new Error("Error al guardar la tarea");
+                }
+
+                mostrarMensaje(
+                    editando ? "Tarea modificada" : "Tarea creada"
+                );
+
+                cancelarEdicion();
+                await cargarTareas();
+
+            } catch (error) {
+                mostrarMensaje(error.message);
+            }
+        };
+
+        // DELETE: ELIMINAR TAREA
+        async function eliminarTarea(id) {
+
+            if (!confirm("¿Quieres eliminar esta tarea?")) {
+                return;
+            }
+
+            try {
+                const respuesta = await fetch(`${API}/${id}`, {
+                    method: "DELETE"
+                });
+
+                if (!respuesta.ok) {
+                    throw new Error("Error al eliminar la tarea");
+                }
+
+                mostrarMensaje("Tarea eliminada");
+                await cargarTareas();
+
+            } catch (error) {
+                mostrarMensaje(error.message);
+            }
+        }
+
+        // CARGAR DATOS AL ABRIR LA PAGINA
+        cargarTareas();
+
+    </script>
+
+</body>
+</html>
